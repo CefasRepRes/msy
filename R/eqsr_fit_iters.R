@@ -135,9 +135,9 @@ eqsr_fit <- function(stk, nsamp = FLCore::dims(stk)$iter, models = c("Ricker","S
   }
 
   # run model averaging
-  srfit <- eqsr_Buckland(data[!data$remove.years,c("year", "rec", "ssb")],
-                         nsamp,
-                         models)
+  srfit <- eqsr_uncertainty_iters(data[!data$remove.years,c("year", "rec", "ssb", "iter")],
+                                  nsamp,
+                                  models)
 
   # create output object
   out <- c(srfit, list(stk = stk, rby = data, id.sr = id.sr))
