@@ -185,7 +185,7 @@ eqsim_run <- function(fit,
   littleHelper <- function(x,i) {
     x2 <- x
     x2[i] <- NA
-    x2[] <- apply(x2,1,mean,na.rm=TRUE)
+    x2[] <- apply(x2,c(1,3), mean, na.rm = TRUE)
     x[i] <- x2[i]
     return(x)
   }
