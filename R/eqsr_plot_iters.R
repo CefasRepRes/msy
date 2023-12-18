@@ -43,7 +43,7 @@ eqsr_plot <- function (fit, n = 20000, x.mult = 1.1, y.mult = 1.4,
   modset <- fit$sr.sto
 
   # get the full data set
-  data <- fit$rby[,c("year", "rec", "ssb")]
+  data <- fit$rby[,c("year", "rec", "ssb", "iter")]
 
   # set up ranges
   minSSB <- min(data$ssb, max(data$ssb) * 0.0125)
@@ -62,7 +62,7 @@ eqsr_plot <- function (fit, n = 20000, x.mult = 1.1, y.mult = 1.4,
     sample_rec <- function(i) {
       # what SR model are we simulting from:
       FUN <-  match.fun(modset$model[i])
-      # simulate from _predictive_ distribrution of recruitment
+      # simulate from _predictive_ distribution of recruitment
       exp( FUN(modset[i,], ssb_eval) + stats::rnorm(length(ssb_eval), sd = modset $ cv[i]) )
     }
 
@@ -126,8 +126,8 @@ eqsr_plot <- function (fit, n = 20000, x.mult = 1.1, y.mult = 1.4,
     }
 
     # plot the observation points
-    lines(data$ssb, data$rec, col = "red")
-    points(data$ssb, data$rec, pch = 19, col = "red", cex = 1.25)
+    lines(data$ssb[data$iter==1], data$rec[data$iter==1], col = "red")
+    points(data$ssb[data$iter==1], data$rec[data$iter==1], pch = 19, col = "red", cex = 1.25)
     # plot the model weights on the graph
     for (i in 1:nrow(fit$sr.det)) {
       text(0.2 * maxSSB,
@@ -158,8 +158,9 @@ eqsr_plot <- function (fit, n = 20000, x.mult = 1.1, y.mult = 1.4,
     modelLines$ssb <- modelLines$ssb/Scale
     modelLines$rec <- modelLines$rec/Scale
 
-    fit$rby$ssb <- fit$rby$ssb/Scale
-    fit$rby$rec <- fit$rby$rec/Scale
+    fit.rby <- fit$rby[fit$rby$iter==1,]
+    fit.rby$ssb <- fit.rby$ssb/Scale
+    fit.rby$rec <- fit.rby$rec/Scale
 
     if (!is.null(modset)) {
       ggplot2::ggplot(out[i,]) +
@@ -170,14 +171,14 @@ eqsr_plot <- function (fit, n = 20000, x.mult = 1.1, y.mult = 1.4,
         ggplot2::geom_line(data=Percentiles,ggplot2::aes(ssb,p50),col="yellow", lwd = 1.5) +
         ggplot2::geom_line(data=modelLines,ggplot2::aes(ssb,rec,colour=Model),lwd=1.5) +
         ggplot2::coord_cartesian(ylim=c(0, stats::quantile(out$rec[i],0.99))) +
-        ggplot2::geom_path(data=fit$rby, ggplot2::aes(ssb, rec), col="black",linetype=2, lwd = 1) +
-        ggplot2::geom_text(data=fit$rby, ggplot2::aes(ssb, rec, label = substr(year,3,4)),size=4,col="black",angle=45) +
+        ggplot2::geom_path(data=fit.rby, ggplot2::aes(ssb, rec), col="black",linetype=2, lwd = 1) +
+        ggplot2::geom_text(data=fit.rby, ggplot2::aes(ssb, rec, label = substr(year,3,4)),size=4,col="black",angle=45) +
         ggplot2::theme(legend.position = c(0.20, 0.85)) +
         ggplot2::labs(x = "Spawning stock biomass",
                       y = "Recruitment",
                       colour="Model")
     } else {
-      ggplot2::ggplot(fit$rby) +
+      ggplot2::ggplot(fit.rby) +
         ggplot2::theme_bw() +
         ggplot2::geom_point(ggplot2::aes(x=ssb,y=rec),size=1, alpha = 0.2) +
         ggplot2::geom_line(data=modelLines,ggplot2::aes(ssb,rec,colour=Model),lwd=1.5) +
