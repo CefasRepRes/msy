@@ -169,10 +169,11 @@ eqsim_run <- function(fit,
   #  forward simulated years)
   keep <- min(Nrun, 50)
 
-  SR.det <- fit$sr.det[which.max(fit$sr.det$prop),] # SR fit to iter 1 (best fit)
-  SR.sto <- fit$sr.sto # SR fits to uncertainty (i.e. assessment replicates 2+)
-  SR.det <- data.frame(a = SR.det$a, b = SR.det$b, cv = SR.det$cv, model = SR.det$model, iter = 1 )
-  SR <- rbind(SR.det, SR.sto)
+  # SR.det <- fit$sr.det[which.max(fit$sr.det$prop),] # SR fit to iter 1 (best fit)
+  # SR.sto <- fit$sr.sto # SR fits to uncertainty (i.e. assessment replicates 2+)
+  # SR.det <- data.frame(a = SR.det$a, b = SR.det$b, cv = SR.det$cv, model = SR.det$model, iter = 1 )
+  # SR <- rbind(SR.det, SR.sto)
+  SR <- fit$sr.sto
   data <- fit$rby[,c("rec","ssb","year", "iter")]
   stk <- fit$stk
   dms <- FLCore::dims(stk) # for array building/looping
