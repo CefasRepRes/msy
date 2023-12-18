@@ -41,18 +41,18 @@ eqsr_Buckland <- function(data, nsamp = 5000, models = c("Ricker","Segreg","Bevh
   row.names(sr.det) <- NULL
 
   if (nsamp > 0) {
-    #--------------------------------------------------------
-    # Fit models on bootstrap resamples
-    #--------------------------------------------------------
-    sr.sto <- lapply(1:nsamp, function(i)
+    #------------------------------------------------------------------------
+    # Fit models to SR replicates extracted from iter dimension of stk object
+    #------------------------------------------------------------------------
+    sr.sto <- lapply(2:nsamp, function(i) # assume uncertainty in replicates 2+
     {
-      sdat <- data[sample(1:ndat, replace = TRUE),]
+      sdat <- data[data$iter == i, ]
 
       fits <- lapply(models, function(mod) stats::nlminb(initial(mod, sdat), nllik, data = sdat, model = mod, logpar = TRUE))
 
       best <- which.min(sapply(fits, "[[", "objective"))
 
-      with(fits[[best]], c(a = exp(par[1]), b = exp(par[2]), cv = exp(par[3]), model = best))
+      with(fits[[best]], c(a = exp(par[1]), b = exp(par[2]), cv = exp(par[3]), model = best, iter = i))
     })
 
     sr.sto <- as.data.frame(do.call(rbind, sr.sto))
