@@ -21,8 +21,8 @@ eqsr_Buckland <- function(data, nsamp = 5000, models = c("Ricker","Segreg","Bevh
   onefit <- function(mod) {
     fit <-
       stats::nlminb(
-        initial(mod, data),
-        nllik, data = data,
+        initial(mod, data[data$iter == 1, ]),
+        nllik, data = data[data$iter == 1, ],
         model = mod, logpar = TRUE,
         control = list(iter.max = 500, eval.max = 500)
       )
