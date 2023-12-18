@@ -98,11 +98,14 @@ eqsr_fit <- function(stk, nsamp = FLCore::dims(stk)$iter, models = c("Ricker","S
   # get correct recruitment vector for each SSB
   # dims$min is the minimum age => recruitment age
   dms <- FLCore::dims(stk)
-  rec <- c(FLCore::rec(stk))
-  ssb_lag <- dms$min + rshift
-  if (ssb_lag > 0)
-  {
-    rec <- c(rec[-seq(ssb_lag)], rep(NA, ssb_lag))
+  ssb_lag <- dms$min + rshift 
+  if (ssb_lag > 0){
+    rec <- FLCore::rec(stk)
+    rec[,ac(dms$minyear:(dms$maxyear - ssb_lag))] <- rec[,ac((dms$minyear + ssb_lag):dms$maxyear)] # backshift recruitment
+    rec[,ac((dms$maxyear - ssb_lag + 1):dms$maxyear)] <- NA # overwrite terminal recruitment values
+    rec <- c(rec) 
+  } else {
+    rec <- c(FLCore::rec(stk))
   }
 
   # combine all required data together
