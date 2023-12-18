@@ -117,7 +117,9 @@ eqsr_fit <- function(stk, nsamp = FLCore::dims(stk)$iter, models = c("Ricker","S
                fbar = c(FLCore::fbar(stk)),
                landings = c(FLCore::landings(stk)),
                catch = c(FLCore::catch(stk)),
-               ssb_lag = ssb_lag)
+               ssb_lag = ssb_lag,
+               iter = rep(1:dms$iter, times = 1, length.out = NA, each = dms$year)
+               )
 
   # remove years with NA recruitment
   data <- data[stats::complete.cases(data),]
