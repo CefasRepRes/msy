@@ -9,12 +9,14 @@
 #'               User can set any combination of
 #'               "Ricker", "Segreg", "Bevholt", "Smooth_hockey".
 #' @export
-eqsr_Buckland <- function(data, nsamp = 5000, models = c("Ricker","Segreg","Bevholt"), ...)
+eqsr_Buckland <- function(data, nsamp = 5000, models = c("Ricker","Segreg","Bevholt"), verbose = TRUE, ...)
 {
   # useful objects
   nllik <- function(param, ...) -1 * llik(param, ...)
-  ndat <- nrow(data)
 
+  if (verbose)
+    message("Fitting SR model(s) to each replicate...")
+  
   #--------------------------------------------------------
   # get best fit for each model
   #--------------------------------------------------------
@@ -55,6 +57,9 @@ eqsr_Buckland <- function(data, nsamp = 5000, models = c("Ricker","Segreg","Bevh
       with(fits[[best]], c(a = exp(par[1]), b = exp(par[2]), cv = exp(par[3]), model = best, iter = i))
     })
 
+    if (verbose)
+    message("\n ...done!")
+    
     sr.sto <- as.data.frame(do.call(rbind, sr.sto))
     sr.sto$model <- models[sr.sto$model]
 

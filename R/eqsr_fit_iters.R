@@ -81,7 +81,7 @@
 #'
 #' @export
 eqsr_fit <- function(stk, nsamp = FLCore::dims(stk)$iter, models = c("Ricker","Segreg","Bevholt"),
-                     id.sr = FLCore::name(stk), remove.years = NULL, rshift = 0)
+                     id.sr = FLCore::name(stk), remove.years = NULL, rshift = 0, verbose = TRUE)
 {
   # some checks on the model argument
   if (!is.character(models)) stop("models arg should be character vector giving names of stock recruit models")
