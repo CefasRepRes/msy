@@ -283,7 +283,15 @@ eqsim_run <- function(fit,
   }
 
   # initial recruitment
+  # Each replicate has its own recruitment values: use mean for each
+  R.initial <- array(aggregate(
+    x = fit$rby$rec,
+    by = list(fit$rby$iter),
+    FUN = mean
+  )$x,
+  dim = c(1, dms$iter))
   R <- R.initial
+  # need to update args to account for this: not urgent
 
   # set up arrays to contain simulations
   ssbs <- cats <- lans <- recs <- array(0, c(7, NF))
