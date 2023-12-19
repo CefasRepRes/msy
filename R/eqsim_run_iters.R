@@ -218,7 +218,7 @@ eqsim_run <- function(fit,
   catch <- array(FLCore::catch.n(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))  
   sel <- array(FLCore::harvest(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter)) 
   Fbar <- array(FLCore::fbar(stk.win), dim = c(1, btyr2 - btyr1 + 1, dms$iter)) 
-  sel <- sweep(sel, 2, Fbar, "/")
+  sel <- sweep(sel, c(2,3), Fbar, "/")
 
   if (sel.const == TRUE) { # take means of selection
     sel[] <- apply(sel, 1, mean)
