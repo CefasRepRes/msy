@@ -276,9 +276,11 @@ eqsim_run <- function(fit,
 
   rsam <- array(sample(1:ncol(weca), Nrun * Nmod, TRUE), c(Nrun, Nmod))
   rsamsel <- array(sample(1:ncol(sel), Nrun * Nmod, TRUE), c(Nrun, Nmod))
-  Wy[] <- c(weca[, c(rsam)])
-  Wl[] <- c(wela[, c(rsam)])
-  Ry[]  <- c(land.cat[, c(rsamsel)])
+  for(i in 1:dms$iter){ # replicate specific resampling
+    Wy[,,i] <- c(weca[, c(rsam[,i]),i])
+    Wl[,,i] <- c(wela[, c(rsam[,i]),i])
+    Ry[,,i] <- c(land.cat[, c(rsamsel[,i]),i])
+  }
 
   # initial recruitment
   R <- R.initial
