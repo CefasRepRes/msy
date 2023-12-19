@@ -342,19 +342,22 @@ eqsim_run <- function(fit,
     ############################################################################
     # Population in simulation year 1:
 
-    # Zpre: Z that occurs before spawning
-    Zpre <- Fbar * sel[,rsamsel[1,]] * Fprop + M[,rsam[1,]] * Mprop
-
-    # Zpos: Z that occurs after spawning
-    # Zpos not used anywhere
-    Zpos <- Fbar * (1-Fprop) * sel[,rsamsel[1,]] + M[,rsam[1,]] * (1-Mprop)
-
+    # Zpre & Zpos: Z that occurs before & after spawning respectively
+    Zpre <- Zpos <- matrix(0, nrow = ages, ncol = Nmod)
+    
     # run Z out to age 50 for plus group...
     # TODO:
     # Comments from Carmen: Zcum is a cumulative sum:
     #  There is a matrix of F-at-age and a matrix of M-at-age (each has 49 ages, Nmod replicates)
     #  The F and M matrices are summed, giving Z-at-age (49 ages, Nmod replicates)
-    Ztot <- Fbar * sel[c(1:ages, rep(ages, 49 - ages)), rsamsel[1,]] + M[c(1:ages, rep(ages, 49 - ages)), rsam[1,]]
+    Ztot <- matrix(0, nrow = 49, ncol = Nmod)
+    
+    for (iter in 1:dms$iter){ # sample selectivity from associated Nmod replicate (replicate specific resampling)
+      Zpre[,iter] <- Fbar * sel[,rsamsel[1,iter],iter] * Fprop + M[,rsam[1,iter],iter] * Mprop
+      Zpos[,iter] <- Fbar * (1-Fprop) * sel[,rsamsel[1,iter],iter] + M[,rsam[1,iter],iter] * (1-Mprop)
+      Ztot[,iter] <- Fbar * sel[c(1:ages, rep(ages, 49 - ages)), rsamsel[1,iter],iter] + M[c(1:ages, rep(ages, 49 - ages)), rsam[1,iter],iter]
+      
+    }
     Zcum <- apply(Ztot, 2, function(x) c(0, cumsum(x)))
     # create initial population structure
     N1 <- R * exp(- unname(Zcum))
