@@ -190,18 +190,18 @@ eqsim_run <- function(fit,
     return(x)
   }
 
-  west <- matrix(FLCore::stock.wt(stk.win), ncol = btyr2 - btyr1 + 1)
+  west <- array(FLCore::stock.wt(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))
   i <- west == 0
   if(any(i)) west <- littleHelper(west,i)
-  weca <- matrix(FLCore::catch.wt(stk.win), ncol = btyr2 - btyr1 + 1)
+  weca <- array(FLCore::catch.wt(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter)) 
   i <- weca == 0
   if(any(i)) weca <- littleHelper(weca,i)
-  wela <- matrix(FLCore::landings.wt(stk.win), ncol = btyr2 - btyr1 + 1)
+  wela <- array(FLCore::landings.wt(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))
   if(any(i)) wela <- littleHelper(wela,i)
 
-  Mat <- matrix(FLCore::mat(stk.win), ncol = btyr2 - btyr1 + 1)
-  M <- matrix(FLCore::m(stk.win), ncol = btyr2 - btyr1 + 1)
-  landings <- matrix(FLCore::landings.n(stk.winsel), ncol = slyr2 - slyr1 + 1)
+  Mat <- array(FLCore::mat(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter)) 
+  M <- array(FLCore::m(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))
+  landings <- array(FLCore::landings.n(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))
   # if zero, use 0.10 of minimum value
 
   catch <- matrix(FLCore::catch.n(stk.winsel), ncol = slyr2 - slyr1 + 1)
