@@ -203,6 +203,17 @@ eqsim_run <- function(fit,
   M <- array(FLCore::m(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))
   landings <- array(FLCore::landings.n(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))
   # if zero, use 0.10 of minimum value
+  
+  # TODO: check if below is required with Simon Fischer
+  # compute catch for each replicate: must be done for each replicate 
+  if (verbose)
+    message("computing catch for each replicate...") 
+  if (verbose) 
+    msy:::loader(0)
+  for(i in 1:dms$iter){ # note: this takes a while... check with Simon if implementation is correct
+    iter(catch.n(stk.win), i) <- iter(computeCatch(stk.win, slot = "n"),i)
+    msy:::loader(i/dms$iter)
+  }
 
   catch <- matrix(FLCore::catch.n(stk.winsel), ncol = slyr2 - slyr1 + 1)
   sel <- matrix(FLCore::harvest(stk.winsel), ncol = slyr2 - slyr1 + 1)
