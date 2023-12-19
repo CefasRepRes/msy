@@ -215,9 +215,9 @@ eqsim_run <- function(fit,
     msy:::loader(i/dms$iter)
   }
 
-  catch <- matrix(FLCore::catch.n(stk.winsel), ncol = slyr2 - slyr1 + 1)
-  sel <- matrix(FLCore::harvest(stk.winsel), ncol = slyr2 - slyr1 + 1)
-  Fbar <- matrix(FLCore::fbar(stk.winsel), ncol = slyr2 - slyr1  + 1)
+  catch <- array(FLCore::catch.n(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))  
+  sel <- array(FLCore::harvest(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter)) 
+  Fbar <- array(FLCore::fbar(stk.win), dim = c(1, btyr2 - btyr1 + 1, dms$iter)) 
   sel <- sweep(sel, 2, Fbar, "/")
 
   if (sel.const == TRUE) { # take means of selection
