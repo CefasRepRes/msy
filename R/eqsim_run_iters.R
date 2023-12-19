@@ -230,11 +230,13 @@ eqsim_run <- function(fit,
 
   # 22.2.2014 Added weight of landings per comment from Carmen
   if (bio.const==TRUE){ # take means of wts Mat and M and ratio of landings to catch
-    west[] <- apply(west, 1, mean)
-    weca[] <- apply(weca, 1, mean)
-    wela[] <- apply(wela, 1, mean)
-    Mat[] <- apply(Mat, 1, mean)
-    M[] <- apply(M, 1, mean) #me
+    for(i in 1:dms$iter){
+      west[,,i][] <- apply(west[,,i], 1, mean)
+      weca[,,i][] <- apply(weca[,,i], 1, mean)
+      wela[,,i][] <- apply(wela[,,i], 1, mean)
+      Mat[,,i][] <- apply(Mat[,,i], 1, mean)
+      M[,,i][] <- apply(M[,,i], 1, mean)
+    }
   }
   land.cat= landings / catch  # ratio of number of landings to catch
 
