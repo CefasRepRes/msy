@@ -221,9 +221,11 @@ eqsim_run <- function(fit,
   sel <- sweep(sel, c(2,3), Fbar, "/")
 
   if (sel.const == TRUE) { # take means of selection
-    sel[,,i][] <- apply(sel[,,i], 1, mean)
-    landings[,,i][] <- apply(landings[,,i], 1, mean)
-    catch[,,i][] <- apply(catch[,,i], 1, mean)
+    for(i in 1:dms$iter){
+      sel[,,i][] <- apply(sel[,,i], 1, mean)
+      landings[,,i][] <- apply(landings[,,i], 1, mean)
+      catch[,,i][] <- apply(catch[,,i], 1, mean)
+    }
   }
 
   # 22.2.2014 Added weight of landings per comment from Carmen
