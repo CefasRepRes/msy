@@ -443,7 +443,14 @@ eqsim_run <- function(fit,
 
       if (ssb_lag == 0) {
         # calculate ssb ignores contribution of recruiting age 0 fish
-        ssby[j, ] <- apply(array(Mat[, rsam[j,]] * Ny[,j,] * west[, rsam[j,]] / exp(Zpre), c(ages, Nmod)), 2, sum)
+        Mats <- wests <- matrix(0, nrow = dms$age, ncol = Nmod)
+        
+        for (iter in 1:dms$iter){
+          Mats[,iter] <- Mat[, rsam[j,iter],iter]
+          wests[,iter] <- west[, rsam[j,iter],iter]
+        } # replicate specific resampling of maturity and stock weights
+        
+        ssby[j, ] <- apply(array(Mats * Ny[,j,] * wests / exp(Zpre), c(ages, Nmod)), 2, sum)
       }
 
       # simulate recruitment in year j
