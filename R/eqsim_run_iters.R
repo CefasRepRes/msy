@@ -481,8 +481,15 @@ eqsim_run <- function(fit,
       Ny[1,j,] <- allrecs[select]
 
       # calculate ssb now we have the recruiting age class abundance
-      ssby[j, ] <- apply(array(Mat[, rsam[j,]] * Ny[,j,] * west[, rsam[j,]] / exp(Zpre), c(ages, Nmod)), 2, sum)
-
+      Mats <- wests <- Ms <- matrix(0, nrow = dms$age, ncol = Nmod)
+      
+      for (iter in 1:dms$iter){
+        Mats[,iter] <- Mat[, rsam[j,iter],iter]
+        wests[,iter] <- west[, rsam[j,iter],iter]
+      }
+      
+      ssby[j, ] <- apply(array(Mats * Ny[,j,] * wests / exp(Zpre), c(ages, Nmod)), 2, sum)
+      
       # calculate catch.n (should this be j-1?  does it matter?)
       Cy[, j, ] <- Ny[, j-1, ] * Fy[, j-1, ] / (Fy[, j-1, ] + M[, rsam[j-1,]]) * (1 - exp(-Fy[, j-1, ] - M[, rsam[j-1,]]))
     }
