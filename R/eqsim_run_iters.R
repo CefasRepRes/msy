@@ -424,10 +424,17 @@ eqsim_run <- function(fit,
       Fnext <- exp(Ferr[j,]) * Fnext
 
       # get a selection pattern for each simulation and apply this to get N
-      Zpre <- rep(Fnext, each = length(Fprop)) * Fprop * sel[, rsamsel[j-1,]] + M[, rsam[j-1,]] * Mprop
+      Zpre <- sels <- Ms <- matrix(0, nrow = dms$age, ncol = Nmod)
+      
+      for (iter in 1:dms$iter){
+        sels[,iter] <- sel[, rsamsel[j-1,iter],iter]
+        Ms[,iter] <- M[, rsam[j-1,iter],iter]
+      } # replicate specific resampling of selectivity and M
+      
+      Zpre <- rep(Fnext, each = length(Fprop)) * Fprop * sels + Ms * Mprop
 
       # get Fy
-      Fy[ , j-1, ] <- rep(Fnext, each = ages) * sel[, rsamsel[j-1,]]
+      Fy[ , j-1, ] <- rep(Fnext, each = ages) * sels
 
       # roll population one year forward having decided in the F value
       Ny[ -1, j, ] <- Ny[1:(ages-1), j-1, ] * exp(-Fy[1:(ages-1), j-1, ] - M[1:(ages-1), rsam[j-1,]])
