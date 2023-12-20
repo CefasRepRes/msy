@@ -491,7 +491,11 @@ eqsim_run <- function(fit,
       ssby[j, ] <- apply(array(Mats * Ny[,j,] * wests / exp(Zpre), c(ages, Nmod)), 2, sum)
       
       # calculate catch.n (should this be j-1?  does it matter?)
-      Cy[, j, ] <- Ny[, j-1, ] * Fy[, j-1, ] / (Fy[, j-1, ] + M[, rsam[j-1,]]) * (1 - exp(-Fy[, j-1, ] - M[, rsam[j-1,]]))
+      for (iter in 1:dms$iter){
+        Ms[,iter] <- M[, rsam[j-1,iter],iter]
+      }
+      
+      Cy[, j, ] <- Ny[, j-1, ] * Fy[, j-1, ] / (Fy[, j-1, ] + Ms) * (1 - exp(-Fy[, j-1, ] - Ms))
     }
 
     # convert to catch weight
