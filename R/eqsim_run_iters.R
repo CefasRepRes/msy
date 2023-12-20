@@ -359,8 +359,14 @@ eqsim_run <- function(fit,
       
     }
     Zcum <- apply(Ztot, 2, function(x) c(0, cumsum(x)))
-    # create initial population structure
-    N1 <- R * exp(- unname(Zcum))
+    # create initial population structure for each replicate
+    N1 <- matrix(0, nrow = keep, ncol = Nmod)
+    
+    for (iter in 1:dms$iter){
+      N1[,iter] <- R[,iter] * exp(-unname(Zcum[,iter])) 
+    }
+    # note: slight numerical differences occur setting up population structure
+    # this way vs old EqSim. Needs to be explored but shouldn't affect ref points
 
     # set up age structure out to age 50 in first years for all simulations
     Ny[,1,] <- rbind(N1[1:(ages-1),], colSums(N1[ages:50,]))
