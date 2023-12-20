@@ -437,7 +437,7 @@ eqsim_run <- function(fit,
       Fy[ , j-1, ] <- rep(Fnext, each = ages) * sels
 
       # roll population one year forward having decided in the F value
-      Ny[ -1, j, ] <- Ny[1:(ages-1), j-1, ] * exp(-Fy[1:(ages-1), j-1, ] - M[1:(ages-1), rsam[j-1,]])
+      Ny[ -1, j, ] <- Ny[1:(ages-1), j-1, ] * exp(-Fy[1:(ages-1), j-1, ] - Ms[1:(ages-1),]) # TODO:: check if Ms are done correctly
       # calculate plus group
       Ny[ages, j, ] <- Ny[ages, j, ] + Ny[ages, j-1, ] * exp(-Fy[ages, j-1, ] - M[ages, rsam[j-1,]])
 
