@@ -439,7 +439,7 @@ eqsim_run <- function(fit,
       # roll population one year forward having decided in the F value
       Ny[ -1, j, ] <- Ny[1:(ages-1), j-1, ] * exp(-Fy[1:(ages-1), j-1, ] - Ms[1:(ages-1),]) # TODO:: check if Ms are done correctly
       # calculate plus group
-      Ny[ages, j, ] <- Ny[ages, j, ] + Ny[ages, j-1, ] * exp(-Fy[ages, j-1, ] - M[ages, rsam[j-1,]])
+      Ny[ages, j, ] <- Ny[ages, j, ] + Ny[ages, j-1, ] * exp(-Fy[ages, j-1, ] - Ms[ages, ])
 
       if (ssb_lag == 0) {
         # calculate ssb ignores contribution of recruiting age 0 fish
