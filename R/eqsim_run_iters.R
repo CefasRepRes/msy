@@ -379,8 +379,15 @@ eqsim_run <- function(fit,
 
     # if rec recruiting year class comes from previous years ssb, as in fish recruiting
     # at age 2 or winter ring herring ageing then run some more initial years
-    # using the same intial population
+    # using the same initial population
     # - NOTE roll forward one year incase ssb_lag is 0 so that we always have a year j-1.
+    Mats <- wests <- matrix(0, nrow = dms$age, ncol = Nmod)
+    
+    for (iter in 1:dms$iter){
+      Mats[,iter] <- Mat[, rsam[j-1,iter],iter]
+      wests[,iter] <- west[, rsam[j-1,iter],iter]
+    } # replicate specific re sampling of maturity and stock weights
+    
     for (j in 2:pmax(2, ssb_lag + 2)) {
       Ny[,j,] <- rbind(N1[1:(ages-1),], colSums(N1[ages:50,]))
       ssby[j,] <- colSums(Mat[,rsam[j-1,]] * Ny[,1,] * west[,rsam[j-1,]] / exp(Zpre))
