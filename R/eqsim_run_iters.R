@@ -372,7 +372,10 @@ eqsim_run <- function(fit,
     Ny[,1,] <- rbind(N1[1:(ages-1),], colSums(N1[ages:50,]))
 
     # calculate ssb in first year using a different stock.wt and Mat selection and M for each simulation
-    ssby[1,] <- colSums(Mat[,rsam[1,]] * Ny[,1,] * west[,rsam[1,]] / exp(Zpre))
+    for(iter in 1:dms$iter){
+      ssby[1,] <- colSums(Mat[,rsam[1,],iter] * Ny[,1,] * west[,rsam[1,],iter] / exp(Zpre[,iter]))
+    }
+    # TODO: Check if above is correct: replicate specific SSB calculation 
 
     # if rec recruiting year class comes from previous years ssb, as in fish recruiting
     # at age 2 or winter ring herring ageing then run some more initial years
