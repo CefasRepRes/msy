@@ -1,0 +1,726 @@
+#' Simulates the Equilibrium Results for a Population.
+#'
+#' Simulate a fish stock forward in time given biological parameters, fishery
+#' parameters and advice parameters.
+#'
+#' @param fit A list returned from the function fitModels
+#' @param bio.years The years to sample maturity, weights and M from, given as
+#'                  a vector of length 2, i.e. c(2010, 2015) select from the
+#'                  years 2010 to 2015 inclusive.
+#' @param bio.const A flag (default FALSE), if TRUE mean of the biological values from the
+#'                  years selected are used
+#' @param sel.years The years to sample the selection patterns from, given as
+#'                  a vector of length 2, i.e. c(2010, 2015) select from the
+#'                  years 2010 to 2015 inclusive.
+#' @param sel.const A flag (default FALSE), if TRUE mean of the selection patterns from the
+#'                  years selected are used
+#' @param Fscan F values to scan over, i.e. seq(0, 2, by = 0.05)
+#' @param Fcv Assessment error in the advisory year
+#' @param Fphi Autocorrelation in assessment error in the advisory year
+#' @param SSBcv Spawning stock biomass error in the advisory year
+#' @param rhologRec A flag for recruitment autocorrelation, default (TRUE), or a
+#'                  vector of numeric values specifcying the autocorrelation
+#'                  parameter for the residuals for each SR model.
+#' @param Blim SSB limit reference point
+#' @param Bpa SSB precuationary reference point
+#' @param recruitment.trim A numeric vector with two log-value clipping the
+#'        extreme recruitment values from a continuous lognormal distribution.
+#'        The values must be set as c("high","low").
+#' @param Btrigger If other than 0 (default) the target F applied is reduced by
+#'                 SSB/Btrigger. This is the "ICES Advice Rule".
+#' @param Nrun The number of years to run in total (the last 50 years from that
+#'             will be retained to compute equilibrium values from)
+#' @param process.error Use stochastic recruitment or mean recruitment?
+#'                      TRUE (default) uses the predictive distribution of recruitment,
+#'                      model estimate of recruitment + simulated observation
+#'                      error.  FALSE uses model prediction of recruitment with
+#'                      no observation error.
+#' @param verbose Flag, if TRUE (default) indication of the progress of the
+#'        simulation is provided in the console. Useful to turn to FALSE when
+#'        knitting documents.
+#' @param extreme.trim a pair of quantiles (low, high) which are used to trim
+#'                     the equilibrium catch values, across simulations within
+#'                     an F scenario, when calculating the mean catch and
+#'                     landings for that F scenario.  These mean values
+#'                     calculated accross simulations within an F scenario
+#'                     are used to find which F scenario gave the maximum catch.
+#'                     \code{extreme.trim} can therefore be used to stablise the
+#'                     estimate of mean equilibrium catch and landings by F
+#'                     scenario.  The default is c(0, 1) which includes all the
+#'                     data and is effectively an untrimmed mean.
+#' @param R.initial Initial recruitment for the simulations.  This is common
+#'                  accross all simulations. Default = mean of all recruitments
+#'                  in the series.
+#' @param keep.sims Flag, if TRUE returns a matrix of population tragectories
+#'                  for each value of F in Fscan (see examples).
+#' @return
+#' A list containing the results from the forward simulation and the reference
+#' points calculated from it.
+#'
+#' @details
+#' Details of the steps required to evaluate reference points are given in
+#' ICES (2017).  WHile, details of the calculation of MSY ranges is given in
+#' ICES (2015).
+#'
+#' @references
+#' ICES (2015) Report of the Workshop to consider F MSY ranges for stocks in
+#' ICES categories 1 and 2 in Western Waters (WKMSYREF4).
+#' \href{http://ices.dk/sites/pub/Publication\%20Reports/Expert\%20Group\%20Report/acom/2015/WKMSYREF4/01\%20WKMSYREF4\%20Report.pdf}{01
+#' WKMSYREF4 Report.pdf}
+#'
+#' ICES (2017) ICES fisheries management reference points for category 1 and 2
+#' stocks.
+#' DOI: \href{https://doi.org/10.17895/ices.pub.3036}{10.17895/ices.pub.3036}
+#'
+#' @seealso
+#'
+#' \code{\link{eqsr_fit}} fits multiple stock recruitment models to a data set.
+#'
+#' \code{\link{eqsr_plot}} plots the results from eqsr_fit.
+#'
+#' \code{\link{eqsim_plot}} summary plot of the forward simulation showing estimates
+#'   of various reference points.
+#'
+#' \code{\link{eqsim_plot_range}} summary plots of the forward simulation showing
+#'   the estimates of MSY ranges (ICES, 2015)
+#'
+#' \code{\link{msy-package}} gives an overview of the package.
+#'
+#' @examples
+#' \dontrun{
+#' data(icesStocks)
+#' FIT <- eqsr_fit(icesStocks$saiNS,
+#'                 nsamp = 1000,
+#'                 models = c("Ricker", "Segreg"))
+#' SIM <-
+#'   eqsim_run(
+#'     FIT,
+#'     bio.years = c(2004, 2013),
+#'     sel.years = c(2004, 2013),
+#'     Fcv = 0.24,
+#'     Fphi = 0.42,
+#'     Blim = 106000,
+#'     Bpa = 200000,
+#'     Fscan = seq(0, 1.2, len = 40)
+#'    )
+#'
+#' # extract tragectories
+#' ssbsim <- SIM$rbya$ssb
+#' years <- SIM$rbya$simyears
+#' models <- SIM$rbya$srmodels$model
+#' Ftarget <- SIM$rbya$Ftarget
+#'
+#' Fval <- which(Ftarget == 0)
+#' Fval <- which(Ftarget > .3)[1]
+#' x <- ssbsim[Fval,,]
+#' df <- data.frame(year = 1:nrow(x),
+#'                  ssb = c(x),
+#'                  sim = rep(1:ncol(x), each = nrow(x)),
+#'                  model = rep(models, each = nrow(x)))
+#' xyplot(ssb ~ year | model, groups = sim, data = df, type = "l", col = grey(0.5, alpha = 0.5))
+#'
+#' fit <- density(x[x>1e-3], from = 0)
+#' plot(fit$x,fit$y*mean(x>1e-3),col="red", type = "l")
+#' lines(x = 0, y = mean(x<=1e-3), type = "h", lwd = 3)
+
+#'
+#' }
+#'
+#' @export
+eqsim_run_iters <- function(fit,
+                      bio.years = c(-5, -1) + FLCore::dims(fit$stk)$maxyear, # years sample weights, M and mat
+                      bio.const = FALSE,
+                      sel.years= c(-5, -1) + FLCore::dims(fit$stk)$maxyear, # years sample sel and discard proportion by number from
+                      sel.const = FALSE,
+                      Fscan = seq(0, 2, len = 40), # F values to scan over
+                      Fcv = 0,
+                      Fphi = 0,
+                      SSBcv = 0,
+                      rhologRec = TRUE,
+                      Blim,
+                      Bpa,
+                      recruitment.trim = c(3, -3),
+                      Btrigger = 0,
+                      Nrun = 200, # number of years to run in total
+                      process.error = TRUE, # use predictive recruitment or mean recruitment? (TRUE = predictive)
+                      verbose = TRUE,
+                      extreme.trim = c(0, 1),
+                      # R.initial = mean(fit$rby$rec),
+                      keep.sims = FALSE)
+{
+
+  if (abs(Fphi) >= 1) stop("Fphi, the autocorelation parameter for log F should be between (-1, 1)")
+  if (diff(recruitment.trim) > 0) stop("recruitment truncation must be given as c(high, low)")
+  # commented out as above line is a better check
+  # if ((recruitment.trim[1] + recruitment.trim[2]) > 0) stop("recruitment truncation must be between a high - low range")
+
+  if (verbose) icesTAF::msg("Setting up...")
+
+  if (length(bio.years) > 2)
+    stop("bio.years must be given as a length two vector: c(first, last)")
+  if (length(sel.years) > 2)
+    stop("sel.years must be given as a length two vector: c(first, last)")
+
+  btyr1 <- bio.years[1]
+  btyr2 <- bio.years[2]
+  slyr1 <- sel.years[1]
+  slyr2 <- sel.years[2]
+  # Keep at most 50 simulation years (which will be the last 50 of the Nrun
+  #  forward simulated years)
+  keep <- min(Nrun, 50)
+
+  # SR.det <- fit$sr.det[which.max(fit$sr.det$prop),] # SR fit to iter 1 (best fit)
+  # SR.sto <- fit$sr.sto # SR fits to uncertainty (i.e. assessment replicates 2+)
+  # SR.det <- data.frame(a = SR.det$a, b = SR.det$b, cv = SR.det$cv, model = SR.det$model, iter = 1 )
+  # SR <- rbind(SR.det, SR.sto)
+  SR <- fit$sr.sto
+  data <- fit$rby[!fit$rby$iter==1,c("rec","ssb","year", "iter")]
+  stk <- iter(fit$stk, 2:FLCore::dims(fit$stk)$iter)
+  dms <- FLCore::dims(stk) # for array building/looping
+
+  # forecast settings (mean wt etc)
+  stk.win <- FLCore::window(stk, start = btyr1, end = btyr2)
+  stk.winsel <- FLCore::window(stk, start = slyr1  , end = slyr2)
+
+  littleHelper <- function(x,i) {
+    x2 <- x
+    x2[i] <- NA
+    x2[] <- apply(x2,c(1,3), mean, na.rm = TRUE)
+    x[i] <- x2[i]
+    return(x)
+  }
+
+  west <- array(FLCore::stock.wt(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))
+  i <- west == 0
+  if(any(i)) west <- littleHelper(west,i)
+  weca <- array(FLCore::catch.wt(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter)) 
+  i <- weca == 0
+  if(any(i)) weca <- littleHelper(weca,i)
+  wela <- array(FLCore::landings.wt(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))
+  if(any(i)) wela <- littleHelper(wela,i)
+
+  Mat <- array(FLCore::mat(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter)) 
+  M <- array(FLCore::m(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))
+  landings <- array(FLCore::landings.n(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))
+  # if zero, use 0.10 of minimum value
+  
+  # TODO: check if below is required with Simon Fischer
+  # compute catch for each replicate: must be done for each replicate 
+  if (verbose)
+    message("computing catch for each replicate...") 
+  if (verbose) 
+    msy:::loader(0)
+  for(i in 1:dms$iter){ # note: this takes a while... check with Simon if implementation is correct
+    iter(catch.n(stk.win), i) <- iter(computeCatch(stk.win, slot = "n"),i)
+    msy:::loader(i/dms$iter)
+  }
+
+  catch <- array(FLCore::catch.n(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter))  
+  sel <- array(FLCore::harvest(stk.win), dim = c(dms$age, btyr2 - btyr1 + 1, dms$iter)) 
+  Fbar <- array(FLCore::fbar(stk.win), dim = c(1, btyr2 - btyr1 + 1, dms$iter)) 
+  sel <- sweep(sel, c(2,3), Fbar, "/")
+
+  if (sel.const == TRUE) { # take means of selection
+    for(i in 1:dms$iter){
+      sel[,,i][] <- apply(sel[,,i], 1, mean)
+      landings[,,i][] <- apply(landings[,,i], 1, mean)
+      catch[,,i][] <- apply(catch[,,i], 1, mean)
+    }
+  }
+
+  # 22.2.2014 Added weight of landings per comment from Carmen
+  if (bio.const==TRUE){ # take means of wts Mat and M and ratio of landings to catch
+    for(i in 1:dms$iter){
+      west[,,i][] <- apply(west[,,i], 1, mean)
+      weca[,,i][] <- apply(weca[,,i], 1, mean)
+      wela[,,i][] <- apply(wela[,,i], 1, mean)
+      Mat[,,i][] <- apply(Mat[,,i], 1, mean)
+      M[,,i][] <- apply(M[,,i], 1, mean)
+    }
+  }
+  land.cat= landings / catch  # ratio of number of landings to catch
+
+  # TODO: Check if this is sensible
+  i <- is.na(land.cat)
+  if(any(i)) land.cat[i] <- 1
+
+  Fprop <- apply(FLCore::harvest.spwn(stk.winsel), 1, mean)[drop=TRUE] # vmean(harvest.spwn(stk.win))
+  Mprop <- apply(FLCore::m.spwn(stk.win), 1, mean)[drop=TRUE] # mean(m.spwn(stk.win))
+
+  # get ready for the simulations
+  Nmod <- nrow(SR)
+  NF <- length(Fscan)
+  ages <- FLCore::dims(stk)$age
+  ssb_lag <- fit$rby$ssb_lag[1]
+
+  ssby <- Ferr <- array(0, c(Nrun,Nmod),dimnames=list(year=1:Nrun,iter=1:Nmod))
+  Ny <- Fy <- WSy <- WCy <- Cy <- Wy <- Wl <- Ry <-
+    array(0, c(ages, Nrun, Nmod),
+          dimnames = list(age = (range(stk)[1]:range(stk)[2]),
+                          year = 1:Nrun,
+                          iter = 1:Nmod))
+  # TODO per note from Carmen:
+  #  NOTE: If we want Ferr to be a stationary AR(1) process, it would make
+  #        more sense to initialise Ferr as a Normal dist with zero mean and
+  #        standard deviation of AR(1) marginal distribution, i.e. standard
+  #        deviation of initial Ferr = Fcv/sqrt(1- Fphi^2), instead of just
+  #        initialising Ferr=0
+  #  2014-03-12: Changed per note form Carmen/John
+  Ferr[1,] <- stats::rnorm(n=Nmod, mean=0, sd=1)*Fcv/sqrt(1-Fphi^2)
+  for(j in 2:Nrun)
+    Ferr[j,] <- Fphi * Ferr[j-1,] + Fcv * stats::rnorm(n = Nmod, mean = 0, sd = 1)
+
+  # 2014-03-12: Changed per note form Carmen/John
+  #  Errors in SSB: this is used when the ICES MSY HCR is applied for F
+  SSBerr <- matrix(stats::rnorm(n = Nrun * Nmod, mean = 0, sd = 1), ncol = Nmod) * SSBcv
+
+  rsam <- array(sample(1:ncol(weca), Nrun * Nmod, TRUE), c(Nrun, Nmod))
+  rsamsel <- array(sample(1:ncol(sel), Nrun * Nmod, TRUE), c(Nrun, Nmod))
+  for(i in 1:dms$iter){ # replicate specific resampling
+    Wy[,,i] <- c(weca[, c(rsam[,i]),i])
+    Wl[,,i] <- c(wela[, c(rsam[,i]),i])
+    Ry[,,i] <- c(land.cat[, c(rsamsel[,i]),i])
+  }
+
+  # initial recruitment
+  # Each replicate has its own recruitment values: use mean for each
+  R.initial <- array(aggregate(
+    x = data$rec,
+    by = list(data$iter),
+    FUN = mean
+  )$x,
+  dim = c(1, dms$iter))
+  R <- R.initial
+  # need to update args to account for this: not urgent
+
+  # set up arrays to contain simulations
+  ssbs <- cats <- lans <- recs <- array(0, c(7, NF))
+  ferr <- ssbsa <- catsa <- lansa <- recsa <- array(0, c(NF, keep, Nmod))
+  if (keep.sims) {
+    # keep all ssbs
+    ssbsall <- catsall <- lansall <- recsall <- array(0, c(NF, Nrun, Nmod))
+  }
+  begin <- Nrun - keep + 1
+
+  # New from Simmonds' 29.1.2014
+  #   Residuals of SR fits (1 value per SR fit and per simulation year
+  #     but the same residual value for all Fscan values):
+  resids= array(stats::rnorm(Nmod*(Nrun+1), 0, SR$cv),c(Nmod, Nrun+1))
+
+  # 2014-03-12: Changed per note form Carmen/John
+  #  Autocorrelation in Recruitment Residuals:
+  if(rhologRec==TRUE){
+    fittedlogRec <-  do.call(cbind, lapply( c(1:nrow(fit$sr.sto)), function(i){
+      FUN <- match.fun(fit$sr.sto$model[i])
+      FUN(fit$sr.sto[i, ], data$ssb) } )  )
+    # Calculate lag 1 autocorrelation of residuals:
+    rhologRec <- apply(log(data$rec)-fittedlogRec, 2, function(x){stats::cor(x[-length(x)],x[-1])})
+  }
+  if (is.numeric(rhologRec)) {
+    # Draw residuals according to AR(1) process:
+    for(j in 2:(Nrun+1)){ resids[,j] <- rhologRec * resids[,j-1] + resids[,j]*sqrt(1 - rhologRec^2) }
+  }
+
+
+  # Limit how extreme the Rec residuals can get:
+  lims = t(array(SR$cv,c(Nmod,2))) * recruitment.trim
+  for (k in 1:Nmod) { resids[k,resids[k,]>lims[1,k]]=lims[1,k]}
+  for (k in 1:Nmod) { resids[k,resids[k,]<lims[2,k]]=lims[2,k]}
+  # end New from Simmonds 29.1.2014
+
+  if (verbose) icesTAF::msg("Running forward simulations.")
+  if (verbose) loader(0)
+
+  # Looping over each F value in Fscan. For each of the Nmod SR fits
+  # (replicates), do a forward simulation during Nrun years
+  # There are Rec residuals for each SR fit and year, which take the same
+  # values for all Fscan
+  for (i in 1:NF) {
+    # The F value to test
+    Fbar <- Fscan[i]
+
+    ############################################################################
+    # Population in simulation year 1:
+
+    # Zpre & Zpos: Z that occurs before & after spawning respectively
+    Zpre <- Zpos <- matrix(0, nrow = ages, ncol = Nmod)
+    
+    # run Z out to age 50 for plus group...
+    # TODO:
+    # Comments from Carmen: Zcum is a cumulative sum:
+    #  There is a matrix of F-at-age and a matrix of M-at-age (each has 49 ages, Nmod replicates)
+    #  The F and M matrices are summed, giving Z-at-age (49 ages, Nmod replicates)
+    Ztot <- matrix(0, nrow = 49, ncol = Nmod)
+    
+    for (iter in 1:dms$iter){ # sample selectivity from associated Nmod replicate (replicate specific resampling)
+      Zpre[,iter] <- Fbar * sel[,rsamsel[1,iter],iter] * Fprop + M[,rsam[1,iter],iter] * Mprop
+      Zpos[,iter] <- Fbar * (1-Fprop) * sel[,rsamsel[1,iter],iter] + M[,rsam[1,iter],iter] * (1-Mprop)
+      Ztot[,iter] <- Fbar * sel[c(1:ages, rep(ages, 49 - ages)), rsamsel[1,iter],iter] + M[c(1:ages, rep(ages, 49 - ages)), rsam[1,iter],iter]
+      
+    }
+    Zcum <- apply(Ztot, 2, function(x) c(0, cumsum(x)))
+    # create initial population structure for each replicate
+    N1 <- matrix(0, nrow = keep, ncol = Nmod)
+    
+    for (iter in 1:dms$iter){
+      N1[,iter] <- R[,iter] * exp(-unname(Zcum[,iter])) 
+    }
+    # note: slight numerical differences occur setting up population structure
+    # this way vs old EqSim. Needs to be explored but shouldn't affect ref points
+
+    # set up age structure out to age 50 in first years for all simulations
+    Ny[,1,] <- rbind(N1[1:(ages-1),], colSums(N1[ages:50,]))
+
+    # calculate ssb in first year using a different stock.wt and Mat selection and M for each simulation
+    for(iter in 1:dms$iter){
+      ssby[1,] <- colSums(Mat[,rsam[1,],iter] * Ny[,1,] * west[,rsam[1,],iter] / exp(Zpre[,iter]))
+    }
+    # TODO: Check if above is correct: replicate specific SSB calculation 
+
+    # if rec recruiting year class comes from previous years ssb, as in fish recruiting
+    # at age 2 or winter ring herring ageing then run some more initial years
+    # using the same initial population
+    Mats <- wests <- matrix(0, nrow = dms$age, ncol = Nmod)
+    
+    for (iter in 1:dms$iter){
+      Mats[,iter] <- Mat[, rsam[j-1,iter],iter]
+      wests[,iter] <- west[, rsam[j-1,iter],iter]
+    } # replicate specific re sampling of maturity and stock weights
+    
+    # - NOTE roll forward one year incase ssb_lag is 0 so that we always have a year j-1.
+    for (j in 2:pmax(2, ssb_lag + 2)) {
+      Ny[,j,] <- rbind(N1[1:(ages-1),], colSums(N1[ages:50,]))
+      ssby[j,] <- colSums(Mats * Ny[,1,] * wests / exp(Zpre)) 
+    }
+
+    # Years (2 + ssb_lag) to Nrun:
+    for (j in (2+ssb_lag):Nrun) {
+
+      #  year j is the projection year,
+      #  year j-1 is where fishing is going to take place
+      #  conceptually the assessment takes place in year j-2
+
+      # apply HCR
+      # (intended) Fbar to be applied in year j-1 (depends on SSB in year j-1):
+      # 2014-03-12: Changed per note form Carmen/John
+      # Fnext <- Fbar * pmin(1, SSB/Btrigger)
+      Fnext <- Fbar * pmin(1, ssby[j-1,] * exp(SSBerr[j-1,]) / Btrigger)
+
+      # apply some noise to the F
+      # Notes from Carmen:
+      #  Assessment and/or implementation error (modifies intended F to get
+      #  realised F)
+      #  Error: AR(1) process on log(F) with autocorrel = Fphi, and
+      #  conditional stand deviation = Fcv
+      #  Might make more sense to have the "Ferr" matrix calculated before
+      #  the Fscan loop starts so that the same errors in F are applied to
+      #  all Fscan values ???? (as for Rec residuals)
+
+      # Outcommented 2014-03-12 because F-error already been drawn outside the
+      #   loop, so this line here is no longer needed:
+      # Ferr[j,] <- Fphi * Ferr[j-1,] + rnorm(Nmod, 0, Fcv)
+
+      # realised Fbar in year j-1:
+      Fnext <- exp(Ferr[j,]) * Fnext
+
+      # get a selection pattern for each simulation and apply this to get N
+      Zpre <- sels <- Ms <- matrix(0, nrow = dms$age, ncol = Nmod)
+      
+      for (iter in 1:dms$iter){
+        sels[,iter] <- sel[, rsamsel[j-1,iter],iter]
+        Ms[,iter] <- M[, rsam[j-1,iter],iter]
+      } # replicate specific resampling of selectivity and M
+      
+      Zpre <- rep(Fnext, each = length(Fprop)) * Fprop * sels + Ms * Mprop
+
+      # get Fy
+      Fy[ , j-1, ] <- rep(Fnext, each = ages) * sels
+
+      # roll population one year forward having decided in the F value
+      Ny[ -1, j, ] <- Ny[1:(ages-1), j-1, ] * exp(-Fy[1:(ages-1), j-1, ] - Ms[1:(ages-1),]) # TODO:: check if Ms are done correctly
+      # calculate plus group
+      Ny[ages, j, ] <- Ny[ages, j, ] + Ny[ages, j-1, ] * exp(-Fy[ages, j-1, ] - Ms[ages, ])
+
+      if (ssb_lag == 0) {
+        # calculate ssb ignores contribution of recruiting age 0 fish
+        Mats <- wests <- matrix(0, nrow = dms$age, ncol = Nmod)
+        
+        for (iter in 1:dms$iter){
+          Mats[,iter] <- Mat[, rsam[j,iter],iter]
+          wests[,iter] <- west[, rsam[j,iter],iter]
+        } # replicate specific resampling of maturity and stock weights
+        
+        ssby[j, ] <- apply(array(Mats * Ny[,j,] * wests / exp(Zpre), c(ages, Nmod)), 2, sum)
+      }
+
+      # simulate recruitment in year j
+      # get ssb from appropriate year, if ssb_lag is zero, then current year ssb is used
+      SSBforRec <- ssby[j-ssb_lag,]
+
+      # predict recruitment using various models
+      if (process.error) {
+        # Changes 29.1.2014
+        # new random draws each time
+        # allrecs <- sapply(unique(SR $ mod), function(mod) exp(match.fun(mod) (SR, SSB) + rnorm(Nmod, 0, SR $ cv)))
+        # same random draws used for each F
+        ###### 2014-03-13  TMP COMMENT - ERROR OCCURS HERE
+        allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod)(SR, SSBforRec) + resids[,j]))
+        # end Changes 29.1.2014
+      } else {
+        allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod) (SR, SSBforRec)))
+      }
+
+      # Comment from Carmen:
+      #  For each of the Nmod replicates, this selects the appropriate SR model
+      #   type to use in that replicate
+      #  Note that the order of SR model types that comes out in "select" is
+      #   not necessarily the same order in which the SR model types were
+      #   entered as inputs -- I presume the **next 2 lines** of code have
+      #   been checked to avoid potential bugs due to this reordering  ????
+      select <- cbind(seq(Nmod), as.numeric(factor(SR$mod, levels = unique(SR$mod))))
+      Ny[1,j,] <- allrecs[select]
+
+      # calculate ssb now we have the recruiting age class abundance
+      Mats <- wests <- Ms <- matrix(0, nrow = dms$age, ncol = Nmod)
+      
+      for (iter in 1:dms$iter){
+        Mats[,iter] <- Mat[, rsam[j,iter],iter]
+        wests[,iter] <- west[, rsam[j,iter],iter]
+      }
+      
+      ssby[j, ] <- apply(array(Mats * Ny[,j,] * wests / exp(Zpre), c(ages, Nmod)), 2, sum)
+      
+      # calculate catch.n (should this be j-1?  does it matter?)
+      for (iter in 1:dms$iter){
+        Ms[,iter] <- M[, rsam[j-1,iter],iter]
+      }
+      
+      Cy[, j, ] <- Ny[, j-1, ] * Fy[, j-1, ] / (Fy[, j-1, ] + Ms) * (1 - exp(-Fy[, j-1, ] - Ms))
+    }
+
+    # convert to catch weight
+    Cw <- Cy * Wy   # catch Numbers *catch wts
+    land <- Cy * Ry * Wl # catch Numbers * Fraction (in number) landed and landed wts
+    Lan <- apply(land, 2:3, sum)
+    Cat <- apply(Cw, 2:3, sum)
+
+    # summarise everything and spit out!
+    ferr[i, , ] <- Ferr[begin:Nrun, ]
+    ssbsa[i, , ] <- ssby[begin:Nrun, ]
+    catsa[i, , ] <- Cat[begin:Nrun, ]
+    lansa[i, , ] <- Lan[begin:Nrun, ]
+    recsa[i, , ] <- Ny[1, begin:Nrun, ]
+
+    # store quantiles
+    quants <- c(0.025, 0.05, 0.25, 0.5, 0.75, 0.95, 0.975)
+    ssbs[, i] <- stats::quantile(ssbsa[i, , ], quants)
+    cats[, i] <- stats::quantile(catsa[i, , ], quants)
+    lans[, i] <- stats::quantile(lansa[i, , ], quants)
+    recs[, i] <- stats::quantile(recsa[i, , ], quants)
+
+    # if user has requested full simulations
+    if (keep.sims) {
+      ssbsall[i, , ] <- ssby
+      catsall[i, , ] <- Cat
+      lansall[i, , ] <- Lan
+      recsall[i, , ] <- Ny[1,,]
+    }
+
+    if (verbose) loader(i/NF)
+  }
+
+  if (verbose) icesTAF::msg("Summarising simulations")
+
+  dimnames(ssbs) <- dimnames(cats) <-
+    dimnames(lans) <- dimnames(recs) <-
+    list(quants=c("p025","p05","p25","p50","p75","p95","p975"),
+         fmort=Fscan)
+
+  rbp2dataframe <- function(x,variable) {
+    x <- data.frame(t(x))
+    x$variable <- variable
+    x$Ftarget <- as.numeric(row.names(x))
+    rownames(x) <- NULL
+    return(x)
+  }
+  rbp <- rbind(rbp2dataframe(recs,"Recruitment"),
+               rbp2dataframe(ssbs,"Spawning stock biomass"),
+               rbp2dataframe(cats,"Catch"),
+               rbp2dataframe(lans,"Landings"))
+  rbp <- rbp[,c(9,8,1:7)]
+
+  # STOCK REFERENCE POINTS
+
+  FCrash05 <- Fscan[which.max(cats[2,]):NF][ which(cats[2, which.max(cats[2,]):NF] < 0.05*max(cats[2,]) )[1] ]
+  FCrash50 <- Fscan[which.max(cats[4,]):NF][ which(cats[4, which.max(cats[4,]):NF] < 0.05*max(cats[4,]) )[1] ]
+
+
+  # Einar amended 30.1.2014
+  if(missing(extreme.trim)) {
+    catm <- apply(catsa, 1, mean)
+    lanm <- apply(lansa, 1, mean)
+  } else {
+
+    # 2014-03-12 Outcommented per note from Carmen/John - see below
+    #x <- catsa
+    #i <- x > quantile(x,extreme.trim[2]) |
+    #  x < quantile(x,extreme.trim[1])
+    #x[i] <- NA
+    #catm <- apply(x, 1, mean, na.rm=TRUE)
+    #
+    #x <- lansa
+    #i <- x > quantile(x,extreme.trim[2]) |
+    #  x < quantile(x,extreme.trim[1])
+    #x[i] <- NA
+    #lanm <- apply(x, 1, mean, na.rm=TRUE)
+
+    # 2014-03-12: Above replaced with the following per note from Carmen/John
+    #  If we want to remove whole SR models, we could use the following code. But it is too extreme, it ends up getting rid of most models:
+    # auxi2 <- array( apply(catsa, 1, function(x){auxi<-rep(TRUE,Nmod); auxi[x > quantile(x, extreme.trim[2]) | x < quantile(x, extreme.trim[1])] <- FALSE; x <- auxi } ), dim=c(keep,Nmod,NF))
+    # auxi2 <- (1:Nmod)[apply(auxi2, 2, function(x){length(unique(as.vector(x)))})==1]
+    # apply(catsa[,,auxi2],1,mean)
+
+    # So I think the alternative is not to get rid of whole SR models, but of different SR models depending on the value of F:
+    catm <- apply(catsa, 1, function(x){mean(x[x <= stats::quantile(x, extreme.trim[2]) & x >= stats::quantile(x, extreme.trim[1])])})
+    lanm <- apply(lansa, 1, function(x){mean(x[x <= stats::quantile(x, extreme.trim[2]) & x >= stats::quantile(x, extreme.trim[1])])})
+  }
+
+  # end Einar amended 30.1.2014
+
+  maxcatm <- which.max(catm)
+  maxlanm <- which.max(lanm)
+
+  # Einar added 29.1.2014
+  rbp$Mean <- NA
+  rbp$Mean[rbp$variable == "Catch"] <- catm
+  rbp$Mean[rbp$variable == "Landings"] <- lanm
+  # end Einar added 29.1.2014
+
+
+  catsam <- apply(catsa, c(1,3), mean)
+  lansam <- apply(lansa, c(1,3), mean)
+  maxpf <- apply(catsam, 2, which.max)
+  maxpfl <- apply(lansam, 2, which.max)
+
+  FmsyLan <- Fscan[maxpfl]
+  msymLan <- mean(FmsyLan)
+  vcumLan <- stats::median(FmsyLan)
+  fmsy.densLan <- stats::density(FmsyLan)
+  vmodeLan <- fmsy.densLan$x[which.max(fmsy.densLan$y)]
+
+  FmsyCat <- Fscan[maxpf]
+  msymCat <- mean(FmsyCat)
+  vcumCat <- stats::median(FmsyCat)
+  fmsy.densCat <- stats::density(FmsyCat)
+  vmodeCat <- fmsy.densCat$x[which.max(fmsy.densCat$y)]
+
+  pFmsyCat  <- data.frame(Ftarget=fmsy.densCat$x,
+                          value=cumsum(fmsy.densCat$y * diff(fmsy.densCat$x)[1]),
+                          variable="pFmsyCatch")
+  pFmsyLan  <- data.frame(Ftarget=fmsy.densLan$x,
+                          value=cumsum(fmsy.densLan$y * diff(fmsy.densLan$x)[1]),
+                          variable="pFmsyLandings")
+  pProfile <- rbind(pFmsyCat,pFmsyLan)
+
+  # PA REFERENCE POINTS
+  if(!missing(Blim)) {
+    pBlim <- apply(ssbsa > Blim, 1, mean)
+
+    i <- max(which(pBlim > .95))
+    grad <- diff(Fscan[i + 0:1]) / diff(pBlim[i + 0:1])
+    flim <- Fscan[i] + grad * (0.95 - pBlim[i]) # linear interpolation i think..
+
+    i <- max(which(pBlim > .90))
+    grad <- diff(Fscan[i + 0:1]) / diff(pBlim[i + 0:1])
+    flim10 <- Fscan[i]+grad*(0.9-pBlim[i]) # linear interpolation i think..
+
+    i <- max(which(pBlim > .50))
+    grad <- diff(Fscan[i + 0:1]) / diff(pBlim[i + 0:1])
+    flim50 <- Fscan[i]+grad*(0.5-pBlim[i]) # linear interpolation i think..
+
+    pBlim <- data.frame(Ftarget = Fscan,value = 1-pBlim,variable="Blim")
+    pProfile <- rbind(pProfile,pBlim)
+  } else {
+    flim <- flim10 <- flim50 <- Blim <- NA
+  }
+
+  if(!missing(Bpa)) {
+    pBpa <- apply(ssbsa > Bpa, 1, mean)
+    pBpa <- data.frame(Ftarget = Fscan,value = 1-pBpa,variable="Bpa")
+    pProfile <- rbind(pProfile,pBpa)
+  } else {
+    Bpa <- NA
+  }
+
+  # GENERATE REF-TABLE
+  catF <- c(flim, flim10, flim50, vcumCat, Fscan[maxcatm], FCrash05, FCrash50)
+  lanF <- c(   NA,    NA,     NA, vcumLan, Fscan[maxlanm],       NA,       NA)
+  catC <- stats::approx(Fscan, cats[4,], xout = catF)$y
+  lanC <- stats::approx(Fscan, lans[4,], xout = lanF)$y
+  catB <- stats::approx(Fscan, ssbs[4,], xout = catF)$y
+  lanB <- stats::approx(Fscan, ssbs[4,], xout = lanF)$y
+
+  Refs <- rbind(catF, lanF, catC, lanC, catB, lanB)
+  rownames(Refs) <- c("catF","lanF","catch","landings","catB","lanB")
+  colnames(Refs) <- c("F05","F10","F50","medianMSY","meanMSY","FCrash05","FCrash50")
+
+  #TODO: id.sim - user specified.
+
+  # 2014-03-12 Ammendments per note from Carmen/John
+  # CALCULATIONS:
+
+  # Fmsy: value that maximises median LT catch or median LT landings
+  auxi <- stats::approx(Fscan, cats[4, ],xout=seq(min(Fscan),max(Fscan),length=200))
+  FmsyMedianC <- auxi$x[which.max(auxi$y)]
+  MSYMedianC <- max(auxi$y)
+  # Value of F that corresponds to 0.95*MSY:
+  FmsylowerMedianC <- auxi$x[ min( (1:length(auxi$y))[auxi$y/MSYMedianC >= 0.95] ) ]
+  FmsyupperMedianC <- auxi$x[ max( (1:length(auxi$y))[auxi$y/MSYMedianC >= 0.95] ) ]
+
+  auxi <- stats::approx(Fscan, lans[4, ],xout=seq(min(Fscan),max(Fscan),length=200))
+  FmsyMedianL <- auxi$x[which.max(auxi$y)]
+  MSYMedianL <- max(auxi$y)
+
+  # Value of F that corresponds to 0.95*MSY:
+  FmsylowerMedianL <- auxi$x[ min( (1:length(auxi$y))[auxi$y/MSYMedianL >= 0.95] ) ]
+  FmsyupperMedianL <- auxi$x[ max( (1:length(auxi$y))[auxi$y/MSYMedianL >= 0.95] ) ]
+
+  F5percRiskBlim <- flim
+
+  refs_interval <- data.frame(FmsyMedianC = FmsyMedianC,
+                             FmsylowerMedianC = FmsylowerMedianC,
+                             FmsyupperMedianC = FmsyupperMedianC,
+                             FmsyMedianL = FmsyMedianL,
+                             FmsylowerMedianL = FmsylowerMedianL,
+                             FmsyupperMedianL = FmsyupperMedianL,
+                             F5percRiskBlim = F5percRiskBlim,
+                             Btrigger = Btrigger)
+
+  # END 2014-03-12 Ammendments per note from Carmen/John
+
+  sim <- list(ibya=list(Mat = Mat, M = M, Fprop = Fprop, Mprop = Mprop,
+                        west = west, weca = weca, sel = sel),
+              rbya=list(ferr = ferr, ssb = ssbsa, catch = catsa,
+                        landings = lansa, rec = recsa,
+                        srmodels = SR, Ftarget = Fscan, simyears = begin:Nrun),
+              rby=fit$rby,
+              rbp=rbp,
+              Blim=Blim,
+              Bpa=Bpa,
+              Refs = Refs,
+              pProfile=pProfile,
+              id.sim=fit$id.sr,
+              refs_interval=refs_interval,
+              rhologRec = rhologRec)
+
+  if (keep.sims) {
+    sim$rbya_all <- list(ssb=ssbsall, catch = catsall, landings = lansall, rec = recsall)
+  }
+
+  if (verbose) icesTAF::msg("Calculating MSY range values")
+
+  sim <- eqsim_range(sim)
+
+  return(sim)
+
+}
