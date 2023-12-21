@@ -145,7 +145,7 @@ eqsim_run_iters <- function(fit,
                       process.error = TRUE, # use predictive recruitment or mean recruitment? (TRUE = predictive)
                       verbose = TRUE,
                       extreme.trim = c(0, 1),
-                      R.initial = mean(fit$rby$rec),
+                      # R.initial = mean(fit$rby$rec),
                       keep.sims = FALSE)
 {
 
@@ -174,8 +174,8 @@ eqsim_run_iters <- function(fit,
   # SR.det <- data.frame(a = SR.det$a, b = SR.det$b, cv = SR.det$cv, model = SR.det$model, iter = 1 )
   # SR <- rbind(SR.det, SR.sto)
   SR <- fit$sr.sto
-  data <- fit$rby[,c("rec","ssb","year", "iter")]
-  stk <- fit$stk
+  data <- fit$rby[!fit$rby$iter==1,c("rec","ssb","year", "iter")]
+  stk <- iter(fit$stk, 2:FLCore::dims(fit$stk)$iter)
   dms <- FLCore::dims(stk) # for array building/looping
 
   # forecast settings (mean wt etc)
@@ -285,8 +285,8 @@ eqsim_run_iters <- function(fit,
   # initial recruitment
   # Each replicate has its own recruitment values: use mean for each
   R.initial <- array(aggregate(
-    x = fit$rby$rec,
-    by = list(fit$rby$iter),
+    x = data$rec,
+    by = list(data$iter),
     FUN = mean
   )$x,
   dim = c(1, dms$iter))
@@ -312,9 +312,9 @@ eqsim_run_iters <- function(fit,
   if(rhologRec==TRUE){
     fittedlogRec <-  do.call(cbind, lapply( c(1:nrow(fit$sr.sto)), function(i){
       FUN <- match.fun(fit$sr.sto$model[i])
-      FUN(fit$sr.sto[i, ], fit$rby$ssb) } )  )
+      FUN(fit$sr.sto[i, ], data$ssb) } )  )
     # Calculate lag 1 autocorrelation of residuals:
-    rhologRec <- apply(log(fit$rby$rec)-fittedlogRec, 2, function(x){stats::cor(x[-length(x)],x[-1])})
+    rhologRec <- apply(log(data$rec)-fittedlogRec, 2, function(x){stats::cor(x[-length(x)],x[-1])})
   }
   if (is.numeric(rhologRec)) {
     # Draw residuals according to AR(1) process:
