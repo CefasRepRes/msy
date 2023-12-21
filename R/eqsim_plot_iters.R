@@ -25,7 +25,9 @@ eqsim_plot <- function(sim, ymax.multiplier=1.2, catch=TRUE)
     #mtext(text = paste("c)", Variable), cex = 0.75, side = 3, line = 0.5)
     with(rbp,lines(Ftarget,p50, lty = 1))
     with(rbp,lines(Ftarget,p05, lty = 4))
-    points(dat[,1],dat[,2],pch=21,cex=0.75,bg=1)
+    points(dat[rby$iter==1,1],dat[rby$iter==1,2],pch=21,cex=0.75,bg=1)
+    points(dat[!rby$iter==1,1],dat[!rby$iter==1,2],pch=21,cex=0.75,col = grDevices::grey(0, 
+                                                                                         alpha = 0.02))
     abline(v=Flim,col="red")
     text(0.98*Flim,0,"F05",srt=90,pos=3,col="red",cex=0.75)
   }
