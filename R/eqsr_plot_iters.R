@@ -36,7 +36,7 @@ globalVariables(c("rec", "year", "Model", "p05", "p95", "p50"))
 #' }
 #'
 #' @export
-eqsr_plot <- function (fit, n = 20000, x.mult = 1.1, y.mult = 1.4,
+eqsr_plot_iters <- function (fit, n = 20000, x.mult = 1.1, y.mult = 1.4,
                        ggPlot = FALSE, Scale = 1)
 {
   # get the draws from the SR parameter simulations

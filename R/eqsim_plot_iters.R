@@ -14,7 +14,7 @@
 #' @param catch Boolean, if TRUE (default) returns a plot based on catch. If false
 #' returns a plot based on landings.
 
-eqsim_plot <- function(sim, ymax.multiplier=1.2, catch=TRUE)
+eqsim_plot_iters <- function(sim, ymax.multiplier=1.2, catch=TRUE)
 {
 
   # littleHelper function

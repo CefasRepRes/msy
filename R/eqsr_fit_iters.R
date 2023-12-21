@@ -80,7 +80,7 @@
 #' }
 #'
 #' @export
-eqsr_fit <- function(stk, nsamp = FLCore::dims(stk)$iter, models = c("Ricker","Segreg","Bevholt"),
+eqsr_fit_iters <- function(stk, nsamp = FLCore::dims(stk)$iter, models = c("Ricker","Segreg","Bevholt"),
                      id.sr = FLCore::name(stk), remove.years = NULL, rshift = 0, verbose = TRUE)
 {
   # some checks on the model argument

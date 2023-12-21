@@ -9,7 +9,7 @@
 #'               User can set any combination of
 #'               "Ricker", "Segreg", "Bevholt", "Smooth_hockey".
 #' @export
-eqsr_Buckland <- function(data, nsamp = dims(stk)$iter, models = c("Ricker","Segreg","Bevholt"), verbose = TRUE, ...)
+eqsr_uncertainty_iters <- function(data, nsamp = dims(stk)$iter, models = c("Ricker","Segreg","Bevholt"), verbose = TRUE, ...)
 {
   # useful objects
   nllik <- function(param, ...) -1 * llik(param, ...)

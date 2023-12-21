@@ -127,7 +127,7 @@
 #' }
 #'
 #' @export
-eqsim_run <- function(fit,
+eqsim_run_iters <- function(fit,
                       bio.years = c(-5, -1) + FLCore::dims(fit$stk)$maxyear, # years sample weights, M and mat
                       bio.const = FALSE,
                       sel.years= c(-5, -1) + FLCore::dims(fit$stk)$maxyear, # years sample sel and discard proportion by number from
