@@ -9,8 +9,7 @@
 #'               User can set any combination of
 #'               "Ricker", "Segreg", "Bevholt", "Smooth_hockey".
 #' @export
-eqsr_uncertainty_iters <- function(data, nsamp = dims(stk)$iter, models = c("Ricker","Segreg","Bevholt"), verbose = TRUE, ...)
-{
+eqsr_uncertainty_iters <- function(data, nsamp = dims(stk)$iter, models = c("Ricker","Segreg","Bevholt"), verbose = TRUE, ...){
   # useful objects
   nllik <- function(param, ...) -1 * llik(param, ...)
 
@@ -68,7 +67,7 @@ eqsr_uncertainty_iters <- function(data, nsamp = dims(stk)$iter, models = c("Ric
     sr.det$n <- unname(tmp[sr.det$model])
     sr.det[is.na(sr.det)] <- 0
     sr.det$prop <- sr.det$n / sum(sr.det$n)
-  } else {
+    } else {
     sr.sto <- NULL
     sr.det$n <- 0
     sr.det$prop <- 0
